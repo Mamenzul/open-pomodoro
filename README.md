@@ -1,17 +1,56 @@
-# pomodoro-cli
+# open-pomodoro
 
 A minimal, file-backed Pomodoro timer for the command line.
 
-## Quick Start
+## Install
 
 ```bash
-go mod tidy
-go build -o pomodoro ./cmd/pomodoro
-./pomodoro init
-./pomodoro start
-./pomodoro status
-./pomodoro break
-./pomodoro start    # cycle advances here (after break completes)
+go install github.com/Mamenzul/open-pomodoro/cmd/pomodoro@latest
+```
+
+Make sure `$(go env GOPATH)/bin` is in your `$PATH`:
+
+```bash
+echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Then create your config file:
+
+```bash
+pomodoro init
+```
+
+## Shell Completion
+
+**Bash**
+```bash
+echo 'eval "$(pomodoro completion bash)"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Zsh**
+```bash
+echo 'eval "$(pomodoro completion zsh)"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Fish**
+```bash
+pomodoro completion fish > ~/.config/fish/completions/pomodoro.fish
+```
+
+## Usage
+
+```bash
+pomodoro start             # begin a work session
+pomodoro status            # check time remaining
+pomodoro pause             # freeze the session
+pomodoro resume            # unfreeze
+pomodoro break             # end work, start a break (short or long)
+pomodoro start             # cycle advances here, after the break
+pomodoro stop              # abandon session, return to Idle
+pomodoro clean             # reset state; --history also wipes history.jsonl
 ```
 
 ## Commands
@@ -74,7 +113,7 @@ transition. Hook failures are printed to stderr but never abort the command.
 
 ```logfmt
 on_start=notify-send "🍅 Pomodoro" "Cycle $POMODORO_CYCLE started"
-on_break=notify-send "☕ Break" "$POMODORO_EVENT"
+on_break=~/.config/open-pomodoro/hooks/on_break.sh
 on_pause=
 on_resume=
 on_stop=
@@ -91,8 +130,50 @@ on_complete=~/.config/open-pomodoro/hooks/on_complete.sh
 | `POMODORO_DURATION` | Session duration in seconds |
 | `POMODORO_DAILY` | Work sessions completed today |
 
-`on_complete` fires when `DailyCount` reaches `daily_goal`. It receives
-`POMODORO_STATE=WORK` (the session that completed the goal).
+`on_complete` fires when `DailyCount` reaches `daily_goal`.
+
+### Example hook scripts
+
+```bash
+# on_break.sh
+#!/usr/bin/env bash
+notify-send -u critical \
+  "🍅 Pomodoro finished" \
+  "Break time! (cycle ${POMODORO_CYCLE})"
+pw-play /usr/share/sounds/freedesktop/stereo/complete.oga
+```
+
+```bash
+# on_complete.sh
+#!/usr/bin/env bash
+notify-send -u critical \
+  "🎉 Daily goal reached!" \
+  "${POMODORO_DAILY} pomodoros completed today"
+pw-play /usr/share/sounds/freedesktop/stereo/complete.oga
+```
+
+## Waybar Integration
+
+Use the bundled `waybar.sh` script as a `custom/script` module:
+
+```json
+"custom/pomodoro": {
+    "exec": "~/.config/open-pomodoro/hooks/waybar.sh",
+    "interval": 1,
+    "return-type": "json",
+    "on-click": "pomodoro start",
+    "on-click-middle": "pomodoro pause || pomodoro resume",
+    "on-click-right": "pomodoro break"
+}
+```
+
+```css
+#custom-pomodoro        { padding: 0 8px; }
+#custom-pomodoro.work   { color: #f38ba8; }
+#custom-pomodoro.break  { color: #a6e3a1; }
+#custom-pomodoro.pause  { color: #f9e2af; }
+#custom-pomodoro.idle   { color: #6c7086; }
+```
 
 ## Configuration
 
@@ -105,12 +186,17 @@ long_break_duration=20m
 long_break_interval=4
 daily_goal=8
 
+# hooks
 on_start=notify-send "Pomodoro started" "Cycle $POMODORO_CYCLE"
 on_break=notify-send "Break time"
+on_pause=
+on_resume=
+on_stop=
+on_complete=
 ```
 
-All keys can also be overridden via env vars with the `POMODORO_` prefix
-(e.g. `POMODORO_WORK_DURATION=30m`).
+All keys can also be overridden via environment variables with the `POMODORO_`
+prefix (e.g. `POMODORO_WORK_DURATION=30m`).
 
 ## State & History
 
@@ -131,3 +217,7 @@ All keys can also be overridden via env vars with the `POMODORO_` prefix
 ├── go.mod
 └── go.sum
 ```
+
+## License
+
+MIT
