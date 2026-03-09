@@ -36,6 +36,7 @@ The cycle counter advances when you run 'start' after completing a break.`,
 	root.AddCommand(
 		startCmd(),
 		breakCmd(),
+		continueCmd(),
 		pauseCmd(),
 		resumeCmd(),
 		stopCmd(),
@@ -44,6 +45,47 @@ The cycle counter advances when you run 'start' after completing a break.`,
 		initCmd(),
 	)
 	return root
+}
+
+// ── Continue command ──────────────────────────────────────────────────────────
+//
+// `continue` toggles between work and break:
+//
+func continueCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "continue",
+		Short: "Toggle: start break after work, or start work after break",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Load current state/config.
+			s, _, err := loadAll()
+			if err != nil {
+				return err
+			}
+
+			// Determine effective session type (account for Pause).
+			effective := s.State
+			if s.State == state.StatePause && s.PrePauseState != "" {
+				effective = s.PrePauseState
+			}
+
+			// If we were working, invoke the existing `break` command.
+			if effective == state.StateWork {
+				bc := breakCmd()
+				// Call the command's RunE directly to reuse its logic.
+				if bc.RunE != nil {
+					return bc.RunE(bc, []string{})
+				}
+				return fmt.Errorf("break command not available")
+			}
+
+			// Otherwise invoke the existing `start` command (works for BREAK, IDLE, etc).
+			sc := startCmd()
+			if sc.RunE != nil {
+				return sc.RunE(sc, []string{})
+			}
+			return fmt.Errorf("start command not available")
+		},
+	}
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

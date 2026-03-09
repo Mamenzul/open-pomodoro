@@ -48,6 +48,7 @@ pomodoro status            # check time remaining
 pomodoro pause             # freeze the session
 pomodoro resume            # unfreeze
 pomodoro break             # end work, start a break (short or long)
+pomodoro continue          # toggle: start break after work, or start work after break
 pomodoro start             # cycle advances here, after the break
 pomodoro stop              # abandon session, return to Idle
 pomodoro clean             # reset state; --history also wipes history.jsonl
@@ -60,6 +61,7 @@ pomodoro clean             # reset state; --history also wipes history.jsonl
 | `pomodoro init` | Write default `~/.config/open-pomodoro/settings` |
 | `pomodoro start` | Begin a work session |
 | `pomodoro break` | Begin a short or long break (auto-selected by cycle) |
+| `pomodoro continue` | Continue: start work after a break, or start break after work |
 | `pomodoro pause` | Freeze the current session |
 | `pomodoro resume` | Unfreeze and continue |
 | `pomodoro stop` | Abandon the current session, return to Idle |
@@ -162,7 +164,7 @@ Use the bundled `waybar.sh` script as a `custom/script` module:
     "interval": 1,
     "return-type": "json",
     "on-click": "pomodoro start",
-    "on-click-middle": "pomodoro pause || pomodoro resume",
+    "on-click-middle": "pomodoro pause || pomodoro resume || pomodoro continue",
     "on-click-right": "pomodoro break"
 }
 ```
