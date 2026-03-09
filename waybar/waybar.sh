@@ -94,6 +94,49 @@ esac
 
 (( REM < 0 )) && REM=0
 
+# Auto-start break when work session is over. This lets waybar automatically
+# transition to a break when the timer reaches zero. We launch `pomodoro break`
+# in the background and then re-read the state file so the module emits the
+# updated BREAK state immediately.
+if [[ "$STATE" == "WORK" && "$REM" -le 0 ]]; then
+  if command -v pomodoro >/dev/null 2>&1; then
+    # Launch in background to avoid blocking waybar. Ignore errors; `pomodoro`
+    # will update the state file synchronously, so subsequent runs won't
+    # re-trigger the break.
+    (pomodoro break >/dev/null 2>&1 || true) &
+    # Small delay to allow `pomodoro break` to write the state file.
+    sleep 0.15
+
+    # Re-read state values from the updated state file.
+    STATE=$(get_str state)
+    CYCLE=$(get_num cycle)
+    DAILY=$(get_num daily_count)
+    DURATION_NS=$(get_num duration)
+    ELAPSED_NS=$(get_num elapsed)
+    START_RAW=$(get_str start_time)
+
+    DURATION_SEC=$(( ${DURATION_NS:-0} / 1000000000 ))
+    ELAPSED_SEC=$(( ${ELAPSED_NS:-0} / 1000000000 ))
+    START_EPOCH=$(parse_epoch "$START_RAW")
+    now=$(date +%s)
+
+    case "$STATE" in
+      PAUSE)
+        REM=$(( DURATION_SEC - ELAPSED_SEC ))
+        ;;
+      WORK|BREAK)
+        END=$(( START_EPOCH + DURATION_SEC ))
+        REM=$(( END - now ))
+        ;;
+      *)
+        REM=0
+        ;;
+    esac
+
+    (( REM < 0 )) && REM=0
+  fi
+fi
+
 # ── Percentage elapsed (for progress arc themes) ──────────────────────────────
 if (( DURATION_SEC > 0 )); then
   PCT=$(( 100 - ( REM * 100 / DURATION_SEC ) ))
